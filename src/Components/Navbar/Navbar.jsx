@@ -1,0 +1,494 @@
+// Navbar.jsx
+import React, { useState, useEffect } from "react";
+import ebroker from "@/assets/Logo_Color.png";
+import { RiUserSmileLine } from "react-icons/ri";
+import { CloseButton, Dropdown } from "react-bootstrap";
+import Offcanvas from "react-bootstrap/Offcanvas";
+import Link from "next/link";
+import { FiPlusCircle } from "react-icons/fi";
+import LoginModal from "../LoginModal/LoginModal";
+import AreaConverter from "../AreaConverter/AreaConverter";
+import { GiHamburgerMenu } from "react-icons/gi";
+import { useSelector } from "react-redux";
+import { logoutSuccess, selectUser } from "@/store/reducer/authSlice";
+import { settingsData } from "@/store/reducer/settingsSlice";
+import { languageLoaded, setLanguage } from "@/store/reducer/languageSlice";
+import { placeholderImage, translate } from "@/utils";
+import { store } from "@/store/store";
+import Swal from "sweetalert2";
+import { useRouter } from "next/router";
+import Image from "next/image";
+import { silderCacheData } from "@/store/reducer/momentSlice";
+import FirebaseData from "@/utils/Firebase";
+
+const Nav = () => {
+    const router = useRouter();
+    const language = store.getState().Language.languages;
+    const { signOut } = FirebaseData();
+
+    const isHomePage = router.pathname === '/';
+    const user_register = router.pathname === '/user-register';
+    const signupData = useSelector(selectUser);
+    const sliderdata = useSelector(silderCacheData);
+    const settingData = useSelector(settingsData);
+
+    const isSubscription = settingData?.subscription;
+    const LanguageList = settingData && settingData.languages;
+    const systemDefaultLanguageCode = settingData?.default_language;
+    const [showModal, setShowModal] = useState(false);
+    const [areaconverterModal, setAreaConverterModal] = useState(false);
+    const [selectedLanguage, setSelectedLanguage] = useState();
+    const [defaultlang, setDefaultlang] = useState(language.name);
+    const [show, setShow] = useState(false);
+    const [headerTop, setHeaderTop] = useState(0);
+    const [scroll, setScroll] = useState(0);
+    const handleClose = () => setShow(false);
+    const handleShow = () => setShow(true);
+
+    useEffect(() => {
+        if (language && language.rtl === 1) {
+            document.documentElement.dir = "rtl";
+        } else {
+            document.documentElement.dir = "ltr";
+        }
+    }, [language]);
+
+    useEffect(() => {
+        if (signupData?.data?.data.name === "" || signupData?.data?.data.email === "" || signupData?.data?.data?.mobile === "" && !user_register) {
+            Swal.fire({
+                title: 'Complete Profile First',
+                icon: 'info',
+                customClass: {
+                    confirmButton: 'Swal-confirm-buttons',
+                    cancelButton: "Swal-cancel-buttons"
+                },
+                confirmButtonText: 'OK',
+                backdrop: 'static',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    router.push('/user-register');
+                }
+            });
+        }
+    }, [signupData]);
+
+    useEffect(() => {
+        const header = document.querySelector(".header");
+        setHeaderTop(header.offsetTop);
+        window.addEventListener("scroll", handleScroll);
+        return () => {
+            window.removeEventListener("scroll", handleScroll);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!language || Object.keys(language).length === 0) {
+            languageLoaded(
+                systemDefaultLanguageCode,
+                "1",
+                (response) => {
+                    const currentLang = response && response.data.name;
+                    store.dispatch(setLanguage(currentLang));
+                    setSelectedLanguage(currentLang);
+                    setDefaultlang(currentLang);
+                },
+                (error) => {
+                    console.log(error);
+                }
+            );
+        }
+    }, []);
+
+    const handleLanguageChange = (languageCode) => {
+        languageLoaded(
+            languageCode,
+            "1",
+            (response) => {
+                const currentLang = response && response.data.name;
+                setSelectedLanguage(currentLang);
+                store.dispatch(setLanguage(currentLang));
+            },
+            (error) => {
+                toast.error(error)
+                console.log(error);
+            }
+        );
+    };
+
+    const handleScroll = () => {
+        setScroll(window.scrollY);
+    };
+
+    const handleOpenModal = () => {
+        setShow(false);
+        setShowModal(true);
+    };
+
+    const handleCloseModal = () => {
+        setShowModal(false);
+    };
+
+    const handleOpenAcModal = () => {
+        setShow(false);
+        setAreaConverterModal(true);
+    };
+
+    const handleCloseAcModal = () => {
+        setAreaConverterModal(false);
+    };
+
+    const handleShowDashboard = () => {
+        if (isSubscription === true) {
+            router.push("/user/dashboard");
+        } else {
+            router.push("/user/profile");
+        }
+    };
+
+    const handleAddProperty = () => {
+        if (isSubscription === true) {
+            router.push("/user/properties");
+        } else {
+            Swal.fire({
+                icon: "error",
+                title: "Oops...",
+                text: "You have not subscribed. Please subscribe first",
+                customClass: {
+                    confirmButton: 'Swal-confirm-buttons',
+                },
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    router.push("/subscription-plan");
+                }
+            });
+        }
+    };
+
+    const handleLogout = () => {
+        handleClose();
+        Swal.fire({
+            title: "Are you sure?",
+            text: "You won't be able to revert this!",
+            icon: "warning",
+            showCancelButton: true,
+            customClass: {
+                confirmButton: 'Swal-confirm-buttons',
+                cancelButton: "Swal-cancel-buttons"
+            },
+            confirmButtonText: "Yes! Logout",
+        }).then((result) => {
+            if (result.isConfirmed) {
+                logoutSuccess();
+                signOut();
+                toast.success(translate("logoutSuccess"));
+            } else {
+                toast.error(translate("logoutcancel"));
+            }
+        });
+    };
+
+    const CheckActiveUserAccount = () => {
+        if (settingData?.is_active === false) {
+            Swal.fire({
+                title: "Opps!",
+                text: "Your account has been deactivated by the admin. Please contact them.",
+                icon: "warning",
+                allowOutsideClick: false,
+                showCancelButton: false,
+                customClass: {
+                    confirmButton: 'Swal-confirm-buttons',
+                    cancelButton: "Swal-cancel-buttons"
+                },
+                confirmButtonText: "Logout",
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    logoutSuccess();
+                    signOut();
+                    router.push("/contact-us");
+                }
+            });
+        }
+    };
+
+    useEffect(() => {
+        CheckActiveUserAccount();
+    }, [settingData?.is_active]);
+
+    return (
+        <>
+            <header>
+                <nav className={`navbar header navbar-expand-lg navbar-light ${scroll > headerTop || (isHomePage && (!sliderdata || sliderdata.length === 0)) ? "is-sticky" : ""}`}>
+                    <div className="container">
+                        <div className="left-side">
+                            <Link className="navbar-brand" href="/">
+                                <Image loading="lazy" src={settingData?.web_logo ? settingData?.web_logo : ebroker} alt="no_img" className="logo" width={0} height={76} style={{ width: "auto" }} onError={placeholderImage} />
+                            </Link>
+                            <span onClick={handleShow} id="hamburg">
+                                <GiHamburgerMenu size={36} />
+                            </span>
+                        </div>
+                        <div className="center-side">
+                            <div className="collapse navbar-collapse" id="navbarSupportedContent">
+                                <ul className="navbar-nav me-auto mb-2 mb-lg-0">
+                                    <li className="nav-item">
+                                        <Link className="nav-link active" aria-current="page" href="/">
+                                            {translate("home")}
+                                        </Link>
+                                    </li>
+                                    <Dropdown>
+                                        <Dropdown.Toggle id="dropdown-basic">{translate("properties")}</Dropdown.Toggle>
+                                        <Dropdown.Menu>
+                                            <Dropdown.Item>
+                                                <Link href="/properties/all-properties/">{translate("allProperties")}</Link>
+                                            </Dropdown.Item>
+                                            <Dropdown.Item>
+                                                <Link href="/featured-properties">{translate("featuredProp")}</Link>
+                                            </Dropdown.Item>
+                                            <Dropdown.Item>
+                                                <Link href="/most-viewed-properties">{translate("mostViewedProp")}</Link>
+                                            </Dropdown.Item>
+                                            <Dropdown.Item>
+                                                <Link href="/properties-nearby-city">{translate("nearbyCities")}</Link>
+                                            </Dropdown.Item>
+                                            <Dropdown.Item>
+                                                <Link href="/most-favorite-properties">{translate("mostFavProp")}</Link>
+                                            </Dropdown.Item>
+                                        </Dropdown.Menu>
+                                    </Dropdown>
+                                    <Dropdown>
+                                        <Dropdown.Toggle id="dropdown-basic">{translate("pages")}</Dropdown.Toggle>
+                                        <Dropdown.Menu>
+                                            <Dropdown.Item>
+                                                <Link href="/subscription-plan">{translate("subscriptionPlan")}</Link>
+                                            </Dropdown.Item>
+                                            <Dropdown.Item>
+                                                <Link href="/articles">{translate("articles")}</Link>
+                                            </Dropdown.Item>
+                                            <Dropdown.Item onClick={handleOpenAcModal}>
+                                                <span>
+                                                    {translate("areaConverter")}
+                                                </span>
+                                            </Dropdown.Item>
+                                            <Dropdown.Item>
+                                                <Link href="/terms-and-condition">{translate("terms&condition")}</Link>
+                                            </Dropdown.Item>
+                                            <Dropdown.Item>
+                                                <Link href="/privacy-policy">{translate("privacyPolicy")}</Link>
+                                            </Dropdown.Item>
+                                        </Dropdown.Menu>
+                                    </Dropdown>
+                                    <Link href="/contact-us" id="a-tags-link">
+                                        <li className="nav-item nav-link">{translate("contactUs")}</li>
+                                    </Link>
+                                    <Link className="nav-link" href="/about-us">
+                                        <li className="nav-item">
+                                            {translate("aboutUs")}
+                                        </li>
+                                    </Link>
+                                </ul>
+                            </div>
+                        </div>
+                        <div className="right-side">
+                            <div className="collapse navbar-collapse" id="navbarSupportedContent">
+                                <ul className="navbar-nav ml-auto">
+                                    <Dropdown>
+                                        <Dropdown.Toggle id="dropdown-basic">  {selectedLanguage ? selectedLanguage : defaultlang}</Dropdown.Toggle>
+                                        <Dropdown.Menu>
+                                            {LanguageList &&
+                                                LanguageList.map((ele, index) => (
+                                                    <Dropdown.Item key={index} onClick={() => handleLanguageChange(ele.code)}>
+                                                        <span>
+                                                            {ele.name}
+                                                        </span>
+                                                    </Dropdown.Item>
+                                                ))}
+                                        </Dropdown.Menu>
+                                    </Dropdown>
+                                    <li className="nav-item">
+                                        {
+                                            signupData?.name ? (
+                                                <Dropdown>
+                                                    <Dropdown.Toggle id="dropdown-basic01">
+                                                        <RiUserSmileLine size={20} className="icon01" />
+                                                        {signupData.name}
+                                                    </Dropdown.Toggle>
+                                                    <Dropdown.Menu id="language">
+                                                        <Dropdown.Item onClick={handleShowDashboard}>
+                                                            <span>
+                                                                {translate("dashboard")}
+                                                            </span>
+                                                        </Dropdown.Item>
+                                                        <Dropdown.Item onClick={handleLogout}>
+                                                            <span>
+                                                                {translate("logout")}
+                                                            </span>
+                                                        </Dropdown.Item>
+                                                    </Dropdown.Menu>
+                                                </Dropdown>
+                                            ) : (
+                                                <a className="nav-link" onClick={handleOpenModal}>
+                                                    <RiUserSmileLine size={20} className="icon" />
+                                                    {translate("login&Regiser")}
+                                                </a>
+                                            )
+                                        }
+                                    </li>
+                                    {signupData?.name && settingData && (
+                                        <li className="nav-item">
+                                            <button className="btn" id="addbutton" onClick={handleAddProperty}>
+                                                <FiPlusCircle size={20} className="mx-2 add-nav-button" />
+                                                {translate("addProp")}
+                                            </button>
+                                        </li>
+                                    )}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </nav>
+            </header>
+            <div>
+                <Offcanvas
+                    show={show}
+                    onHide={handleClose}
+                    placement="end"
+                    scroll={false}
+                    backdrop={true}
+                    style={{ width: "90%" }}
+                >
+                    <Offcanvas.Header>
+                        <Offcanvas.Title>
+                            <span className="title-name">{settingData?.company_name}</span>
+                        </Offcanvas.Title>
+                        <Offcanvas.Title>
+                            <CloseButton onClick={handleClose} />
+                        </Offcanvas.Title>
+                    </Offcanvas.Header>
+                    <Offcanvas.Body>
+                        <div className="mobile_nav">
+                            <ul className="navbar-nav" id="mobile-ul">
+                                <li className="nav-item">
+                                    <Link className="nav-link active" aria-current="page" href="/" onClick={handleClose}>
+                                        {translate("home")}
+                                    </Link>
+                                </li>
+                                <Dropdown>
+                                    <Dropdown.Toggle id="dropdown-basic">{translate("properties")}</Dropdown.Toggle>
+                                    <Dropdown.Menu>
+                                        <Dropdown.Item>
+                                            <Link href="/properties/all-properties/" onClick={handleClose}>
+                                                {translate("allProperties")}
+                                            </Link>
+                                        </Dropdown.Item>
+                                        <Dropdown.Item>
+                                            <Link href="/featured-properties" onClick={handleClose}>
+                                                {translate("featuredProp")}
+                                            </Link>
+                                        </Dropdown.Item>
+                                        <Dropdown.Item>
+                                            <Link href="/most-viewed-properties" onClick={handleClose}>
+                                                {translate("mostViewedProp")}
+                                            </Link>
+                                        </Dropdown.Item>
+                                        <Dropdown.Item>
+                                            <Link href="/properties-nearby-city" onClick={handleClose}>
+                                                {translate("nearbyCities")}
+                                            </Link>
+                                        </Dropdown.Item>
+                                        <Dropdown.Item>
+                                            <Link href="/most-favorite-properties" onClick={handleClose}>
+                                                {translate("mostFavProp")}
+                                            </Link>
+                                        </Dropdown.Item>
+                                    </Dropdown.Menu>
+                                </Dropdown>
+                                <Dropdown>
+                                    <Dropdown.Toggle id="dropdown-basic">{translate("pages")}</Dropdown.Toggle>
+                                    <Dropdown.Menu>
+                                        <Dropdown.Item>
+                                            <Link href="/subscription-plan" onClick={handleClose}>
+                                                {translate("subscriptionPlan")}
+                                            </Link>
+                                        </Dropdown.Item>
+                                        <Dropdown.Item>
+                                            <Link href="/articles" onClick={handleClose}>
+                                                {translate("articles")}
+                                            </Link>
+                                        </Dropdown.Item>
+                                        <Dropdown.Item onClick={handleOpenAcModal}>{translate("areaConverter")}</Dropdown.Item>
+                                        <Dropdown.Item>
+                                            <Link href="/terms-and-condition" onClick={handleClose}>
+                                                {translate("terms&condition")}
+                                            </Link>
+                                        </Dropdown.Item>
+                                        <Dropdown.Item>
+                                            <Link href="/privacy-policy" onClick={handleClose}>
+                                                {translate("privacyPolicy")}
+                                            </Link>
+                                        </Dropdown.Item>
+                                    </Dropdown.Menu>
+                                </Dropdown>
+                                <li className="nav-item">
+                                    <Link className="nav-link" href="/contact-us" onClick={handleClose}>
+                                        {translate("contactUs")}
+                                    </Link>
+                                </li>
+                                <li className="nav-item">
+                                    <Link className="nav-link" href="/about-us" onClick={handleClose}>
+                                        {translate("aboutUs")}
+                                    </Link>
+                                </li>
+                                <Dropdown>
+                                    <Dropdown.Toggle id="dropdown-basic">{selectedLanguage ? selectedLanguage : defaultlang}</Dropdown.Toggle>
+                                    <Dropdown.Menu id="language">
+                                        {LanguageList &&
+                                            LanguageList.map((ele, index) => (
+                                                <Dropdown.Item key={index} onClick={() => handleLanguageChange(ele.code)}>
+                                                    <span>{ele.name}</span>
+                                                </Dropdown.Item>
+                                            ))}
+                                    </Dropdown.Menu>
+                                </Dropdown>
+                                <li className="nav-item">
+                                    {signupData?.name ? (
+                                        <Dropdown>
+                                            <Dropdown.Toggle id="dropdown-basic01">
+                                                <RiUserSmileLine size={20} className="icon01" />
+                                                {signupData.name}
+                                            </Dropdown.Toggle>
+                                            <Dropdown.Menu id="language">
+                                                <Dropdown.Item onClick={handleShowDashboard}>
+                                                    <span>{translate("dashboard")}</span>
+                                                </Dropdown.Item>
+                                                <Dropdown.Item onClick={handleLogout}>
+                                                    <span>{translate("logout")}</span>
+                                                </Dropdown.Item>
+                                            </Dropdown.Menu>
+                                        </Dropdown>
+                                    ) : (
+                                        <a className="nav-link" onClick={handleOpenModal}>
+                                            <RiUserSmileLine size={20} className="icon" />
+                                            {translate("login&Regiser")}
+                                        </a>
+                                    )}
+                                </li>
+                                {signupData?.name && settingData && (
+                                    <li className="nav-item">
+                                        <button className="btn" id="addbutton-mobile" onClick={handleAddProperty}>
+                                            <FiPlusCircle size={20} className="mx-2 add-nav-button" />
+                                            {translate("addProp")}
+                                        </button>
+                                    </li>
+                                )}
+                            </ul>
+                        </div>
+                    </Offcanvas.Body>
+                </Offcanvas>
+            </div>
+            <LoginModal isOpen={showModal} onClose={handleCloseModal} />
+            <AreaConverter isOpen={areaconverterModal} onClose={handleCloseAcModal} />
+        </>
+    );
+};
+
+export default Nav;
