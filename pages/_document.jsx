@@ -19,7 +19,7 @@ class CustomDocument extends Document {
 
                     {/* Google Adsence */}
                     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5187122762138955"
-                        crossorigin="anonymous"></script>
+                        crossOrigin="anonymous"></script>
 
 
                 </Head>

@@ -1,74 +1,75 @@
-import { createSelector, createSlice, createAction } from "@reduxjs/toolkit";
-import { user_signupApi } from "@/utils/api";
-import { apiCallBegan } from "../actions/apiActions";
-import { store } from "../store";
-// initial state
+import { createSlice } from "@reduxjs/toolkit";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+import FirebaseData from "../../utils/Firebase";
 
 const initialState = {
-    data: null,
-    loading: false,
+  user: null,
+  loading: false,
+  error: null,
 };
 
-// slice
-export const authSlice = createSlice({
-    name: "User_signup",
-    initialState,
-    reducers: {
-        signupRequested: (user_signup, action) => {
-            user_signup.loading = true;
-        },
-        signupSucess: (user_signup, action) => {
-            user_signup.data = action.payload;
-
-            user_signup.loading = true;
-        },
-        signupFailure: (user_signup, action) => {
-            user_signup.loading = false;
-        },
-        updateDataSuccess: (user_signup, action) => {
-            user_signup.data = action.payload;
-        },
-        userUpdateData: (user_signup, action) => {
-            user_signup.data.data = action.payload.data;
-        },
-        userLogout: (user_signup) => {
-            user_signup = initialState;
-            return user_signup;
-        },
+const authSlice = createSlice({
+  name: "auth",
+  initialState,
+  reducers: {
+    authRequested: (state) => {
+      state.loading = true;
     },
+    authSuccess: (state, action) => {
+      state.user = action.payload;
+      state.loading = false;
+      state.error = null;
+    },
+    authFailure: (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
+    },
+    userLogout: (state) => {
+      state.user = null;
+      state.loading = false;
+      state.error = null;
+    },
+  },
 });
-export const { signupRequested, signupSucess, signupFailure, updateDataSuccess, userUpdateData, userLogout } = authSlice.actions;
+
+export const { authRequested, authSuccess, authFailure, userLogout } = authSlice.actions;
+
+// Selector para obtener el usuario del estado
+export const selectUser = (state) => state.User_signup.user;
+
 export default authSlice.reducer;
 
-//  API CALLS
-export const signupLoaded = (name, email, mobile, type, address, firebase_id, logintype, profile, fcm_id, onSuccess, onError, onStart) => {
-    store.dispatch(
-        apiCallBegan({
-            ...user_signupApi(name, email, mobile, type, address, firebase_id, logintype, profile, fcm_id),
-            displayToast: false,
-            onStartDispatch: signupRequested.type,
-            onSuccessDispatch: signupSucess.type,
-            onErrorDispatch: signupFailure.type,
-            onStart,
-            onSuccess,
-            onError,
-        })
-    );
+// Thunks
+export const loginUser = (email, password) => async (dispatch) => {
+  const { authentication } = FirebaseData();
+  dispatch(authRequested());
+  try {
+    const userCredential = await signInWithEmailAndPassword(authentication, email, password);
+    dispatch(authSuccess(userCredential.user));
+  } catch (error) {
+    dispatch(authFailure(error.message));
+  }
 };
 
-export const loadUpdateData = (data) => {
-    store.dispatch(updateDataSuccess({ data }));
-};
-export const loadUpdateUserData = (data) => {
-    store.dispatch(userUpdateData({ data }));
-};
-export const logoutSuccess = (logout) => {
-    store.dispatch(userLogout({ logout }));
+export const logoutUser = () => async (dispatch) => {
+  const { authentication } = FirebaseData();
+  dispatch(authRequested());
+  try {
+    await signOut(authentication);
+    dispatch(userLogout());
+  } catch (error) {
+    dispatch(authFailure(error.message));
+  }
 };
 
-// Slecttors
-
-export const userSignUpData = createSelector(
-    (state) => state.User_signup,
-    (User_signup) => User_signup
-);
+// Observer to keep user logged in
+export const observeAuthState = () => (dispatch) => {
+  const { authentication } = FirebaseData();
+  onAuthStateChanged(authentication, (user) => {
+    if (user) {
+      dispatch(authSuccess(user));
+    } else {
+      dispatch(userLogout());
+    }
+  });
+};

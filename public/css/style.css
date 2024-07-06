@@ -966,7 +966,7 @@ body {
 
 .posted-since .posted-duration-modal .form-check {
   display: flex;
-  justify-content: flex-start;
+  justify-content: start;
   align-items: center;
   gap: 10px;
   background: var(--primary-background);
@@ -5192,7 +5192,7 @@ div#all-articles_card_footer .allarticles_footer_text p {
 #article-card-footer {
   display: flex;
   flex-direction: row;
-  justify-content: flex-start;
+  justify-content: start;
   align-items: center;
   gap: 20px;
   background: var(--primary-text-color01);
